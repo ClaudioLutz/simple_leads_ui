@@ -28,21 +28,24 @@ df = get_leads()
 if 'df_to_show' not in st.session_state:
     st.session_state.df_to_show = df
 
-# Search functionality
-col1, col2, col3, col4 = st.columns([3, 2, 1, 2])
+# Search functionality within an expander
+with st.expander("Suchen und Filtern", expanded=True):
+    col1, col2, col3, col4 = st.columns([3, 2, 1, 2])
 
-with col1:
-    search_term = st.text_input('Suchen', label_visibility="collapsed", placeholder="Suchen")
-with col2:
-    search_category = st.selectbox('Suchen in', df.columns, label_visibility="collapsed")
-with col3:
-    if st.button('Suchen'):
-        if search_term:
-            st.session_state.df_to_show = df[df[search_category].astype(str).str.contains(search_term, case=False)]
-        else:
+    with col1:
+        search_term = st.text_input('Suchen', label_visibility="collapsed", placeholder="Test Firma AG")
+    with col2:
+        # Set 'name' as default search category
+        default_category_index = list(df.columns).index('name') if 'name' in df.columns else 0
+        search_category = st.selectbox('Suchen in', df.columns, label_visibility="collapsed", index=default_category_index)
+    with col3:
+        if st.button('Suchen'):
+            if search_term:
+                st.session_state.df_to_show = df[df[search_category].astype(str).str.contains(search_term, case=False)]
+            else:
+                st.session_state.df_to_show = df
+    with col4:
+        if st.button('Filter entfernen'):
             st.session_state.df_to_show = df
-with col4:
-    if st.button('Filter entfernen'):
-        st.session_state.df_to_show = df
 
 st.dataframe(st.session_state.df_to_show, use_container_width=True)
