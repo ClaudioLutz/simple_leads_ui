@@ -75,7 +75,7 @@ def display_notes_modal():
     modal_key = f"notes_modal_{current_lead_id}" # Unique key for the modal
     text_area_key = f"notes_text_area_{current_lead_id}" # Unique key for the text_area
 
-    with st.modal(title=f"Notes for {lead_name}", key=modal_key):
+    with st.expander(f"Notes for {lead_name}", expanded=True):
         st.write(f"Lead ID: {current_lead_id}") # Display lead ID for context
         # The notes variable here is just to hold the widget, value is retrieved via its key from session_state
         st.text_area("Notes", value=existing_notes, height=200, key=text_area_key)
@@ -97,7 +97,7 @@ def display_notes_modal():
                     "Saved notes do not match notes in session state."
                 print(f"[Save Clicked] Lead {current_lead_id}. Saved Notes: '{updated_notes}'")
                 st.session_state.selected_lead_id = None
-                st.rerun() # Rerun to close modal and refresh state
+                st.rerun() # Rerun to close expander and refresh state
 
         with col2:
             # Disable button if at the first lead, otherwise handle click
@@ -127,18 +127,18 @@ def display_notes_modal():
                         "Next lead ID not set correctly."
                     st.rerun()
 
-        # Add a way to close the modal using the modal's default close button
-        # This is handled by st.modal internally, but explicit close can be done by setting selected_lead_id to None
+        # Add a way to close the expander using the expander's default close button
+        # This is handled by st.expander internally, but explicit close can be done by setting selected_lead_id to None
 
 
-authenticator.login(location='main')
+name, authentication_status, username = authenticator.login(location='main')
 
 # Initialize session state for lead notes if it doesn't exist
 if 'lead_notes' not in st.session_state:
     st.session_state.lead_notes = {}
 
 if st.session_state.get("authentication_status"):
-    authenticator.logout('Logout', 'sidebar')
+    authenticator.logout(location='sidebar')
     st.write(f'Welcome *{st.session_state["name"]}*')
     st.title('Lead Generator')
 
@@ -170,25 +170,37 @@ if st.session_state.get("authentication_status"):
 
         st.dataframe(
             st.session_state.df_to_show,
-            use_container_width=True,
-            selection_mode="single-row",
-            on_select="rerun",
-            key='df_to_show_selection'
+            use_container_width=True
         )
 
-        if st.session_state.df_to_show_selection:
-            selected_rows = st.session_state.df_to_show_selection['rows']
-            if selected_rows:
-                selected_row_index = selected_rows[0]
-                if 'lead_id' in st.session_state.df_to_show.columns:
-                    newly_selected_lead_id = st.session_state.df_to_show.iloc[selected_row_index]['lead_id']
-                    st.session_state.selected_lead_id = newly_selected_lead_id
-                    # Test: Lead Selection
-                    assert st.session_state.selected_lead_id is not None, "selected_lead_id was not set after row selection."
-                    print(f"[Row Selected] Lead ID: {st.session_state.selected_lead_id}")
-                    # Do not call rerun here, selection itself triggers it via on_select='rerun'
-                else:
-                    print("Error: 'lead_id' column not found in DataFrame.")
+        # Lead selection dropdown for notes
+        options = [(row['name'], row['lead_id']) for _, row in st.session_state.df_to_show.iterrows()]
+        selected_name = st.selectbox("Select lead for notes", [opt[0] for opt in options], key="lead_select")
+        if st.button("Open Notes", key="open_notes_btn"):
+            for name, lid in options:
+                if name == selected_name:
+                    st.session_state.selected_lead_id = lid
+                    break
+            st.rerun()
+
+        # Note: Streamlit's st.dataframe does not support selection_mode or key parameters.
+        # To implement row selection, consider using st_aggrid or other third-party components.
+        # For now, we remove the selection handling code to avoid errors.
+
+        # if 'df_to_show_selection' in st.session_state:
+        #     selection = st.session_state.df_to_show_selection.get('selection', {})
+        #     selected_rows = selection.get('rows', [])
+        #     if selected_rows:
+        #         selected_row_index = selected_rows[0]
+        #         if 'lead_id' in st.session_state.df_to_show.columns:
+        #             newly_selected_lead_id = st.session_state.df_to_show.iloc[selected_row_index]['lead_id']
+        #             st.session_state.selected_lead_id = newly_selected_lead_id
+        #             # Test: Lead Selection
+        #             assert st.session_state.selected_lead_id is not None, "selected_lead_id was not set after row selection."
+        #             print(f"[Row Selected] Lead ID: {st.session_state.selected_lead_id}")
+        #             # Do not call rerun here, selection itself triggers it via on_select='rerun'
+        #         else:
+        #             print("Error: 'lead_id' column not found in DataFrame.")
 
     # Display the modal if a lead is selected
     if 'selected_lead_id' in st.session_state and st.session_state.selected_lead_id is not None:

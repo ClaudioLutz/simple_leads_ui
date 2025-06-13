@@ -15,7 +15,7 @@ credentials:
 cookie:
   expiry_days: 30
   key: some_random_key
-  name: some_cookie_name
+  name: some_cookie_name_v2
 preauthorized:
   emails:
   - friend@example.com
