@@ -3,6 +3,7 @@ import pandas as pd
 import yaml
 from yaml.loader import SafeLoader
 import streamlit_authenticator as stauth
+from datetime import date # Added for selection_date
 
 st.set_page_config(layout="wide")
 
@@ -148,6 +149,16 @@ if st.session_state.get("authentication_status"):
     # Initialize session state
     if 'df_to_show' not in st.session_state:
         st.session_state.df_to_show = df
+    
+    # Initialize moved_leads_df
+    if 'moved_leads_df' not in st.session_state:
+        temp_leads_df = get_leads() # Call get_leads to get structure
+        lead_columns = temp_leads_df.columns.tolist() + ['selection_date']
+        st.session_state.moved_leads_df = pd.DataFrame(columns=lead_columns)
+
+    # Initialize checked_lead_ids for checkbox selection
+    if 'checked_lead_ids' not in st.session_state:
+        st.session_state.checked_lead_ids = set()
 
     # Lead selection dropdown for notes
     options = [(row['name'], row['lead_id']) for _, row in st.session_state.df_to_show.iterrows()]
@@ -202,10 +213,86 @@ if st.session_state.get("authentication_status"):
             if st.button('Filter entfernen'):
                 st.session_state.df_to_show = df
 
-        st.dataframe(
-            st.session_state.df_to_show,
-            use_container_width=True
-        )
+        # Checkbox-based selection system
+        if not st.session_state.df_to_show.empty:
+            df_to_display = st.session_state.df_to_show
+            df_columns = df_to_display.columns.tolist()
+            
+            # Header row with "Select All" checkbox
+            # Column widths: Checkbox column, then others
+            header_column_widths = [0.2] + [1.5] * len(df_columns) 
+            header_cols = st.columns(header_column_widths)
+
+            # "Select All" checkbox logic
+            all_visible_lead_ids = set(df_to_display['lead_id'].tolist())
+            
+            def on_select_all_change():
+                # This function is now correctly defined and will be used by the select_all_checkbox_instance
+                if st.session_state.select_all_checkbox_instance: # If checked
+                    st.session_state.checked_lead_ids.update(all_visible_lead_ids)
+                else: # If unchecked
+                    st.session_state.checked_lead_ids.difference_update(all_visible_lead_ids)
+
+            # Re-evaluating "are_all_selected" for the checkbox state
+            # This must be based on current `checked_lead_ids` and `all_visible_lead_ids`
+            is_select_all_checked_value = all_visible_lead_ids.issubset(st.session_state.checked_lead_ids) if all_visible_lead_ids else False
+            
+            # The "Select All" checkbox in the header
+            header_cols[0].checkbox(" ", value=is_select_all_checked_value, key="select_all_checkbox_instance", on_change=on_select_all_change, help="Select/Deselect all visible leads")
+
+
+            for i, col_name in enumerate(df_columns):
+                header_cols[i+1].markdown(f"**{col_name}**")
+
+            # Display individual lead rows with checkboxes
+            for index, row_data in df_to_display.iterrows():
+                lead_id = row_data['lead_id']
+                is_checked = lead_id in st.session_state.checked_lead_ids
+                
+                row_cols = st.columns(header_column_widths) # Same widths as header
+
+                def on_checkbox_change(current_lead_id):
+                    if st.session_state[f"cb_{current_lead_id}"]: # If checked
+                        st.session_state.checked_lead_ids.add(current_lead_id)
+                    else: # If unchecked
+                        st.session_state.checked_lead_ids.discard(current_lead_id)
+                
+                # Individual checkbox for the lead
+                row_cols[0].checkbox(" ", value=is_checked, key=f"cb_{lead_id}", on_change=on_checkbox_change, args=(lead_id,))
+
+                for i, col_name in enumerate(df_columns):
+                    row_cols[i+1].write(str(row_data[col_name]))
+            
+            st.markdown("---") # Separator
+
+            # "Move Checked Leads" button
+            if st.button("Move Checked Leads to Selected List"):
+                if not st.session_state.checked_lead_ids:
+                    st.warning("No leads selected to move.")
+                else:
+                    leads_to_move_df = df_to_display[df_to_display['lead_id'].isin(st.session_state.checked_lead_ids)].copy()
+                    if not leads_to_move_df.empty:
+                        leads_to_move_df['selection_date'] = date.today().strftime("%Y-%m-%d")
+
+                        for col in leads_to_move_df.columns:
+                            if col not in st.session_state.moved_leads_df.columns:
+                                st.session_state.moved_leads_df[col] = pd.NA
+                        
+                        st.session_state.moved_leads_df = pd.concat([st.session_state.moved_leads_df, leads_to_move_df], ignore_index=True)
+                        
+                        if 'lead_id' in st.session_state.moved_leads_df.columns:
+                            st.session_state.moved_leads_df.drop_duplicates(subset=['lead_id'], keep='last', inplace=True)
+                        
+                        st.success(f"{len(leads_to_move_df)} checked leads moved to selected list.")
+                        st.session_state.checked_lead_ids.clear() # Clear selection after moving
+                        # The "Select All" checkbox will update its visual state on rerun
+                        # because is_select_all_checked_value will be False after clearing checked_lead_ids.
+                        st.rerun()
+                    else:
+                        st.warning("Selected leads not found in the current view. This shouldn't happen.")
+        
+        else: # If df_to_show is empty
+            st.write("No leads to display based on current filters or data.")
 
 elif st.session_state["authentication_status"] is False:
     st.error('Username/password is incorrect')
