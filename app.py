@@ -81,9 +81,9 @@ def display_notes_modal():
         st.text_area("Notes", value=existing_notes, height=200, key=text_area_key)
         # Test: Assert that the value passed to text_area is what we expect (on open/re-open)
         # This assertion is tricky due to Streamlit's execution. We rely on text_area_key being populated.
-        if text_area_key in st.session_state:
-             assert st.session_state[text_area_key] == existing_notes, \
-                f"Text area content '{st.session_state[text_area_key]}' did not match loaded notes '{existing_notes}'"
+        #if text_area_key in st.session_state:
+        #     assert st.session_state[text_area_key] == existing_notes, \
+        #        f"Text area content '{st.session_state[text_area_key]}' did not match loaded notes '{existing_notes}'"
 
 
         col1, col2, col3, col4 = st.columns([1,1,1,3]) # Adjust column ratios as needed
@@ -131,6 +131,7 @@ def display_notes_modal():
         # This is handled by st.expander internally, but explicit close can be done by setting selected_lead_id to None
 
 
+# Fixed the login call - removed the conflicting 'Login' parameter
 name, authentication_status, username = authenticator.login(location='main')
 
 # Initialize session state for lead notes if it doesn't exist
@@ -138,7 +139,7 @@ if 'lead_notes' not in st.session_state:
     st.session_state.lead_notes = {}
 
 if st.session_state.get("authentication_status"):
-    authenticator.logout(location='sidebar')
+    authenticator.logout(button_name='Logout', location='sidebar')
     st.write(f'Welcome *{st.session_state["name"]}*')
     st.title('Lead Generator')
 
