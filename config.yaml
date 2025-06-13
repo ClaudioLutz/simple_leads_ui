@@ -1,0 +1,21 @@
+credentials:
+  usernames:
+    jsmith:
+      email: jsmith@gmail.com
+      name: John Smith
+      password: '$2b$12$0Etw3910ILrRUMOBUVPfNunD8AAp.rFH1ZC5rf/22SAaPPIPRdlXm'
+    rbriggs:
+      email: rbriggs@gmail.com
+      name: Rebecca Briggs
+      password: '$2b$12$Np4TSRHQSkcD2uN1Nh1Rt.F0PrXPMjtGWUjAUYhRKzuys8hwgYXsS'
+    testuser:
+      email: test@test.com
+      name: Test User
+      password: '$2b$12$NfEWvf9rP3prTwIUk6htLOGCUwzZvTqVBkV5LfBK7I2Y3KbbbDPS2'
+cookie:
+  expiry_days: 30
+  key: some_random_key
+  name: some_cookie_name
+preauthorized:
+  emails:
+  - friend@example.com
