@@ -149,6 +149,39 @@ if st.session_state.get("authentication_status"):
     if 'df_to_show' not in st.session_state:
         st.session_state.df_to_show = df
 
+    # Lead selection dropdown for notes
+    options = [(row['name'], row['lead_id']) for _, row in st.session_state.df_to_show.iterrows()]
+    selected_name = st.selectbox("Select lead for notes", [opt[0] for opt in options], key="lead_select")
+    if st.button("Open Notes", key="open_notes_btn"):
+        for name, lid in options:
+            if name == selected_name:
+                st.session_state.selected_lead_id = lid
+                break
+        st.rerun()
+
+    # Note: Streamlit's st.dataframe does not support selection_mode or key parameters.
+    # To implement row selection, consider using st_aggrid or other third-party components.
+    # For now, we remove the selection handling code to avoid errors.
+
+    # if 'df_to_show_selection' in st.session_state:
+    #     selection = st.session_state.df_to_show_selection.get('selection', {})
+    #     selected_rows = selection.get('rows', [])
+    #     if selected_rows:
+    #         selected_row_index = selected_rows[0]
+    #         if 'lead_id' in st.session_state.df_to_show.columns:
+    #             newly_selected_lead_id = st.session_state.df_to_show.iloc[selected_row_index]['lead_id']
+    #             st.session_state.selected_lead_id = newly_selected_lead_id
+    #             # Test: Lead Selection
+    #             assert st.session_state.selected_lead_id is not None, "selected_lead_id was not set after row selection."
+    #             print(f"[Row Selected] Lead ID: {st.session_state.selected_lead_id}")
+    #             # Do not call rerun here, selection itself triggers it via on_select='rerun'
+    #         else:
+    #             print("Error: 'lead_id' column not found in DataFrame.")
+
+    # Display the modal if a lead is selected
+    if 'selected_lead_id' in st.session_state and st.session_state.selected_lead_id is not None:
+        display_notes_modal()
+
     # Search functionality within an expander
     with st.expander("Suchen und Filtern", expanded=True):
         col1, col2, col3, col4 = st.columns([3, 2, 1, 2])
@@ -173,39 +206,6 @@ if st.session_state.get("authentication_status"):
             st.session_state.df_to_show,
             use_container_width=True
         )
-
-        # Lead selection dropdown for notes
-        options = [(row['name'], row['lead_id']) for _, row in st.session_state.df_to_show.iterrows()]
-        selected_name = st.selectbox("Select lead for notes", [opt[0] for opt in options], key="lead_select")
-        if st.button("Open Notes", key="open_notes_btn"):
-            for name, lid in options:
-                if name == selected_name:
-                    st.session_state.selected_lead_id = lid
-                    break
-            st.rerun()
-
-        # Note: Streamlit's st.dataframe does not support selection_mode or key parameters.
-        # To implement row selection, consider using st_aggrid or other third-party components.
-        # For now, we remove the selection handling code to avoid errors.
-
-        # if 'df_to_show_selection' in st.session_state:
-        #     selection = st.session_state.df_to_show_selection.get('selection', {})
-        #     selected_rows = selection.get('rows', [])
-        #     if selected_rows:
-        #         selected_row_index = selected_rows[0]
-        #         if 'lead_id' in st.session_state.df_to_show.columns:
-        #             newly_selected_lead_id = st.session_state.df_to_show.iloc[selected_row_index]['lead_id']
-        #             st.session_state.selected_lead_id = newly_selected_lead_id
-        #             # Test: Lead Selection
-        #             assert st.session_state.selected_lead_id is not None, "selected_lead_id was not set after row selection."
-        #             print(f"[Row Selected] Lead ID: {st.session_state.selected_lead_id}")
-        #             # Do not call rerun here, selection itself triggers it via on_select='rerun'
-        #         else:
-        #             print("Error: 'lead_id' column not found in DataFrame.")
-
-    # Display the modal if a lead is selected
-    if 'selected_lead_id' in st.session_state and st.session_state.selected_lead_id is not None:
-        display_notes_modal()
 
 elif st.session_state["authentication_status"] is False:
     st.error('Username/password is incorrect')
