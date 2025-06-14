@@ -37,7 +37,7 @@ if st.session_state.get("authentication_status"):
              # Ensure it's a string for display; already stored as string
              display_df['selection_date'] = display_df['selection_date'].astype(str)
 
-        st.dataframe(display_df, use_container_width=True)
+        st.dataframe(display_df, use_container_width=False) # Changed to False to allow horizontal scrolling
 
         if st.button("Clear All Moved Leads"):
             # Re-initialize moved_leads_df with correct columns
