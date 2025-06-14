@@ -53,8 +53,8 @@ if st.session_state["authentication_status"]:
     if 'checked_lead_ids' not in st.session_state:
         st.session_state.checked_lead_ids = set()
     if 'moved_leads_df' not in st.session_state:
-        # Initialize with correct columns including 'selection_date'
-        columns = st.session_state.leads.columns.tolist() + ['selection_date']
+        # Initialize with correct columns including 'selection_date' and 'assigned_to'
+        columns = st.session_state.leads.columns.tolist() + ['selection_date', 'assigned_to']
         st.session_state.moved_leads_df = pd.DataFrame(columns=columns)
 
     st.title("Lead Generation")
@@ -102,18 +102,42 @@ if st.session_state["authentication_status"]:
     moved_ids = st.session_state.moved_leads_df['lead_id'].unique()
     df_to_display = df_to_display[~df_to_display['lead_id'].isin(moved_ids)]
 
-    # --- Move Selected Leads Button ---
-    if st.button("Move Selected Leads to 'Selected Leads'"):
-        if st.session_state.checked_lead_ids:
-            leads_to_move = st.session_state.leads[st.session_state.leads['lead_id'].isin(st.session_state.checked_lead_ids)].copy()
-            leads_to_move['selection_date'] = date.today().isoformat() # Store date as string
+    # --- Assignment Logic for Manager ---
+    user_role = config['credentials']['usernames'][username].get('role', 'default_role')
 
-            st.session_state.moved_leads_df = pd.concat([st.session_state.moved_leads_df, leads_to_move], ignore_index=True)
-            st.session_state.checked_lead_ids.clear() # Clear selections after moving
-            st.success(f"{len(leads_to_move)} leads moved successfully!")
-            st.rerun()
+    if user_role == 'Manager':
+        st.sidebar.markdown("---")
+        st.sidebar.header("Lead Assignment")
+
+        representatives = {
+            user: details['name']
+            for user, details in config['credentials']['usernames'].items()
+            if details.get('role') == 'Representative'
+        }
+
+        if not representatives:
+            st.sidebar.warning("No representatives found in config.yaml.")
         else:
-            st.warning("No leads selected to move.")
+            selected_rep_name = st.sidebar.selectbox(
+                "Assign selected leads to:",
+                options=list(representatives.values())
+            )
+            
+            selected_rep_username = [user for user, name in representatives.items() if name == selected_rep_name][0]
+
+            if st.button(f"Assign to {selected_rep_name}"):
+                if st.session_state.checked_lead_ids:
+                    leads_to_move = st.session_state.leads[st.session_state.leads['lead_id'].isin(st.session_state.checked_lead_ids)].copy()
+                    leads_to_move['selection_date'] = date.today().isoformat()
+                    leads_to_move['assigned_to'] = selected_rep_username # Add the username of the rep
+
+                    st.session_state.moved_leads_df = pd.concat([st.session_state.moved_leads_df, leads_to_move], ignore_index=True)
+                    st.session_state.checked_lead_ids.clear()
+                    
+                    st.success(f"{len(leads_to_move)} leads assigned to {selected_rep_name} successfully!")
+                    st.rerun()
+                else:
+                    st.warning("No leads selected to assign.")
 
     # --- Display Leads Table using st.data_editor ---
     if not df_to_display.empty:
