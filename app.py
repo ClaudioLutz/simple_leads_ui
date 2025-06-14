@@ -41,7 +41,7 @@ def get_leads():
     return df
 
 # --- Main App Logic ---
-name, authentication_status, username = authenticator.login()
+name, authentication_status, username = authenticator.login() # User note: Ignore Pylance error "Argument missing for parameter 'form_name'"
 
 if st.session_state["authentication_status"]:
     st.sidebar.title(f"Welcome *{st.session_state['name']}*")
@@ -62,14 +62,41 @@ if st.session_state["authentication_status"]:
     # --- Filtering ---
     st.sidebar.header("Filter Leads")
     df_to_display = st.session_state.leads.copy()
+    
+    # df_columns is defined here for st.data_editor's 'disabled' parameter later.
+    # It contains all data column names from the original dataframe except 'lead_id'.
     df_columns = df_to_display.columns.tolist()
-    df_columns.remove('lead_id') # Don't filter by lead_id
+    df_columns.remove('lead_id') 
 
-    for column in df_columns:
-        if df_to_display[column].nunique() > 1 and df_to_display[column].dtype == 'object':
-            options = st.sidebar.multiselect(f"Filter by {column}", options=df_to_display[column].unique())
-            if options:
-                df_to_display = df_to_display[df_to_display[column].isin(options)]
+    # New two-step filtering logic
+    all_lead_columns = st.session_state.leads.columns.tolist()
+    filterable_categories = ["None"] # Start with "None" option to disable category filter
+
+    for col_name in all_lead_columns:
+        if col_name == 'lead_id': # Skip lead_id for filtering categories
+            continue
+        # A column is filterable if it's of object type and has more than one unique value in the original dataset
+        if st.session_state.leads[col_name].nunique() > 1 and st.session_state.leads[col_name].dtype == 'object':
+            filterable_categories.append(col_name)
+
+    selected_category = st.sidebar.selectbox(
+        "Filter by Category:",
+        options=filterable_categories,
+        index=0 # Default to "None"
+    )
+
+    if selected_category != "None":
+        # Get unique values from the original dataset for the selected category
+        # Convert to list and sort for consistent display in multiselect
+        unique_values_for_category = sorted(list(st.session_state.leads[selected_category].unique()))
+        
+        selected_values = st.sidebar.multiselect(
+            f"Select {selected_category} value(s):",
+            options=unique_values_for_category
+        )
+        if selected_values: # If the user selected some values for the chosen category
+            df_to_display = df_to_display[df_to_display[selected_category].isin(selected_values)]
+    # End of new filtering logic
 
     # Exclude leads that have already been moved
     moved_ids = st.session_state.moved_leads_df['lead_id'].unique()
@@ -79,7 +106,7 @@ if st.session_state["authentication_status"]:
     if st.button("Move Selected Leads to 'Selected Leads'"):
         if st.session_state.checked_lead_ids:
             leads_to_move = st.session_state.leads[st.session_state.leads['lead_id'].isin(st.session_state.checked_lead_ids)].copy()
-            leads_to_move['selection_date'] = date.today()
+            leads_to_move['selection_date'] = date.today().isoformat() # Store date as string
 
             st.session_state.moved_leads_df = pd.concat([st.session_state.moved_leads_df, leads_to_move], ignore_index=True)
             st.session_state.checked_lead_ids.clear() # Clear selections after moving
@@ -89,7 +116,6 @@ if st.session_state["authentication_status"]:
             st.warning("No leads selected to move.")
 
     # --- Display Leads Table using st.data_editor ---
-    # THIS IS THE REPLACEMENT FOR THE OLD st.columns-BASED TABLE
     if not df_to_display.empty:
         # Add a 'Select' column to the dataframe for the checkboxes
         df_to_display.insert(0, "Select", False)
@@ -102,7 +128,7 @@ if st.session_state["authentication_status"]:
                 "Select": st.column_config.CheckboxColumn(required=True),
                 "lead_id": None # Hide the lead_id column from the user
             },
-            disabled=df_columns, # Make other columns non-editable
+            disabled=df_columns, # Make data columns (all except 'Select' and 'lead_id') non-editable
             use_container_width=True
         )
 
